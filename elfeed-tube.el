@@ -203,6 +203,11 @@ This is a boolean. Use yt-dlp when t. Otherwise use invidious."
   :group 'elfeed-tube
   :type 'boolean)
 
+(defcustom elfeed-tube-ytdlp-max-proc 2
+  "Maximum number of simultaneous yt-dlp processes allowed."
+  :group 'elfeed-tube
+  :type 'integer)
+
 (defcustom elfeed-tube-captions-sblock-p t
   "Whether sponsored segments should be de-emphasized in transcripts."
   :group 'elfeed-tube

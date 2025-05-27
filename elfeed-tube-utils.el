@@ -397,6 +397,12 @@ This function returns a promise."
             (aio-await
              (elfeed-tube--aio-fetch url next desc (1- attempts)))))))))
 
+(defun elfeed-tube--proc-count-ytdlp ()
+  "Returns the number of 'yt-dlp' processes currently running"
+  (seq-count (lambda (elt) (string-match-p "yt-dlp" elt))
+             (mapcar (lambda (list) (alist-get 'args list))
+                     (mapcar #'process-attributes (list-system-processes)))))
+
 (aio-defun elfeed-tube--ytdlp-fetch (url)
   "Return a hash table of the JSON dump as retrieved by yt-dlp.
 
@@ -407,9 +413,12 @@ table."
      "Could not find yt-dlp executable. Please install yt-dlp or add to path."))
   (or (gethash url elfeed-tube--ytdlp-table)
       (let* ((yt-proc
+              (progn
+                (while (>= (elfeed-tube--proc-count-ytdlp) elfeed-tube-ytdlp-max-proc)
+                  (aio-await (aio-sleep 5)))
               (start-process
                "yt-dlp" (get-buffer-create url)
-               "yt-dlp" "--quiet" "--skip-download" "--dump-json" url))
+                 "yt-dlp" "--quiet" "--skip-download" "--dump-json" url)))
              (promise (aio-promise)))
         (set-process-query-on-exit-flag yt-proc nil)
         (set-process-sentinel
