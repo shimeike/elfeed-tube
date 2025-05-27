@@ -403,6 +403,9 @@ This function returns a promise."
              (mapcar (lambda (list) (alist-get 'args list))
                      (mapcar #'process-attributes (list-system-processes)))))
 
+(aio-defun elfeed-tube--ytdlp-wait ()
+  (aio-await (aio-sleep 5)))
+
 (aio-defun elfeed-tube--ytdlp-fetch (url)
   "Return a hash table of the JSON dump as retrieved by yt-dlp.
 
@@ -415,7 +418,7 @@ table."
       (let* ((yt-proc
               (progn
                 (while (>= (elfeed-tube--proc-count-ytdlp) elfeed-tube-ytdlp-max-proc)
-                  (aio-await (aio-sleep 5)))
+                  (elfeed-tube--ytdlp-wait))
               (start-process
                "yt-dlp" (get-buffer-create url)
                  "yt-dlp" "--quiet" "--skip-download" "--dump-json" url)))
