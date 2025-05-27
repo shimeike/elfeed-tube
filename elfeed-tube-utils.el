@@ -411,12 +411,12 @@ table."
   (unless (executable-find "yt-dlp")
     (user-error
      "Could not find yt-dlp executable. Please install yt-dlp or add to path."))
-;;  (while (>= (elfeed-tube--proc-count-ytdlp) elfeed-tube-ytdlp-max-proc) (aio-await (aio-sleep 5)))
+  (while (>= (elfeed-tube--proc-count-ytdlp) elfeed-tube-ytdlp-max-proc) (aio-await (aio-sleep 5)))
   (or (gethash url elfeed-tube--ytdlp-table)
       (let* ((yt-proc
               (start-process
                "yt-dlp" (get-buffer-create url)
-                 "yt-dlp" "--quiet" "--skip-download" "--dump-json" url)))
+               "yt-dlp" "--quiet" "--skip-download" "--dump-json" url))
              (promise (aio-promise)))
         (set-process-query-on-exit-flag yt-proc nil)
         (set-process-sentinel
@@ -429,7 +429,7 @@ table."
                      (forward-line 0)
                      (puthash url (json-parse-buffer :array-type 'list)
                               elfeed-tube--ytdlp-table))))
-          (kill-buffer url))))
+          (kill-buffer url)))))
 
 (defun elfeed-tube--entry-create (feed-id entry-data)
   "Create an Elfeed entry from ENTRY-DATA for feed with id FEED-ID.
