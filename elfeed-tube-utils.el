@@ -403,9 +403,6 @@ This function returns a promise."
              (mapcar (lambda (list) (alist-get 'args list))
                      (mapcar #'process-attributes (list-system-processes)))))
 
-(aio-defun elfeed-tube--ytdlp-wait ()
-  (aio-await (aio-sleep 5)))
-
 (aio-defun elfeed-tube--ytdlp-fetch (url)
   "Return a hash table of the JSON dump as retrieved by yt-dlp.
 
@@ -414,11 +411,9 @@ table."
   (unless (executable-find "yt-dlp")
     (user-error
      "Could not find yt-dlp executable. Please install yt-dlp or add to path."))
+;;  (while (>= (elfeed-tube--proc-count-ytdlp) elfeed-tube-ytdlp-max-proc) (aio-await (aio-sleep 5)))
   (or (gethash url elfeed-tube--ytdlp-table)
       (let* ((yt-proc
-              (progn
-                (while (>= (elfeed-tube--proc-count-ytdlp) elfeed-tube-ytdlp-max-proc)
-                  (elfeed-tube--ytdlp-wait))
               (start-process
                "yt-dlp" (get-buffer-create url)
                  "yt-dlp" "--quiet" "--skip-download" "--dump-json" url)))
@@ -434,7 +429,7 @@ table."
                      (forward-line 0)
                      (puthash url (json-parse-buffer :array-type 'list)
                               elfeed-tube--ytdlp-table))))
-          (kill-buffer url)))))
+          (kill-buffer url))))
 
 (defun elfeed-tube--entry-create (feed-id entry-data)
   "Create an Elfeed entry from ENTRY-DATA for feed with id FEED-ID.
