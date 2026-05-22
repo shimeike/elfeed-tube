@@ -4,7 +4,7 @@
 
 ;; Author: Karthik Chikmagalur <karthik.chikmagalur@gmail.com>
 ;; Version: 0.15
-;; Package-Requires: ((emacs "27.1") (elfeed "3.4.1") (aio "1.0"))
+;; Package-Requires: ((emacs "27.1") (elfeed "3.4.2") (aio "1.0"))
 ;; Keywords: news, hypermedia, convenience
 ;; URL: https://github.com/karthink/elfeed-tube
 
@@ -69,6 +69,7 @@
 ;; 
 ;;; Code:
 (require 'elfeed)
+(require 'elfeed-show)
 (eval-when-compile
   (require 'cl-lib))
 (require 'subr-x)
@@ -260,11 +261,13 @@ paragraphs or sections. It must be a positive integer."
     map))
 
 (defface elfeed-tube-chapter-face
-  '((t :inherit (variable-pitch message-header-other) :weight bold))
+  '((t :inherit (variable-pitch elfeed-show-entry-feed-face)
+       :weight bold))
   "Face used for chapter headings displayed by Elfeed Tube.")
 
 (defface elfeed-tube-timestamp-face
-  '((t :inherit (variable-pitch message-header-other) :weight semi-bold))
+  '((t :inherit (variable-pitch elfeed-show-entry-date-face)
+       :weight semi-bold))
   "Face used for transcript timestamps displayed by Elfeed Tube.")
 
 (defvar elfeed-tube-captions-faces
@@ -305,7 +308,9 @@ paragraphs or sections. It must be a positive integer."
       (elfeed-tube--with-db elfeed-tube--captions-db-dir
         (setf (elfeed-meta entry :caps)
               (when-let ((caption (elfeed-tube-item-caps data-item)))
-                (elfeed-ref (prin1-to-string caption))))))
+                (elfeed-ref (let ((print-length nil)
+                                  (print-level nil))
+                              (prin1-to-string caption)))))))
     (elfeed-tube-log 'info "[DB][Wrote to DB][video:%s]"
                      (elfeed-tube--truncate (elfeed-entry-title entry)))
     t))
@@ -358,11 +363,11 @@ buffer."
           
           (goto-char (point-max))
           (when (text-property-search-backward
-                 'face 'message-header-name)
+                 'face 'elfeed-show-entry-header-face)
             (beginning-of-line)
             (when (looking-at "Transcript:")
               (text-property-search-backward
-               'face 'message-header-name)
+               'face 'elfeed-show-entry-header-face)
               (beginning-of-line)))
           
           ;; Duration
@@ -420,7 +425,16 @@ buffer."
                                     ((capstr (elfeed-deref
                                               (elfeed-meta entry :caps))))
                                   (condition-case nil
-                                      (read capstr)
+                                      (let ((parsed (read capstr)))
+                                        (if (cl-some (lambda (el) (not (consp el)))
+                                                     (cddr parsed))
+                                            (progn ;guard against corrupted DB data (#51)
+                                              (elfeed-tube-log
+                                               'warn
+                                               "[Show][Captions] Corrupt data in DB (truncated by print-length), discarding")
+                                              (setf (elfeed-meta entry :caps) nil)
+                                              nil)
+                                          parsed))
                                     (error
                                      (elfeed-tube-log
                                       'error "[Show][Captions] DB parse error: %S"
@@ -454,9 +468,9 @@ buffer."
                                          (point)))
 	(end-of-line)
 	(insert "\n"))
-      (insert (propertize "Duration: " 'face 'message-header-name)
+      (insert (propertize "Duration: " 'face 'elfeed-show-entry-header-face)
               (propertize (elfeed-tube--timestamp duration)
-                          'face 'message-header-other)
+                          'face 'elfeed-show-entry-date-face)
               "\n")
       t)))
 
@@ -501,7 +515,7 @@ buffer."
         (goto-char (point-max))
         (unless (eq (char-before) 10) (insert "\n"))
         (insert "\n"
-                (propertize "Transcript:" 'face 'message-header-name)
+                (propertize "Transcript:" 'face 'elfeed-show-entry-header-face)
                 "\n\n")
         (cl-loop for (start end para) in caption-ordered
                  with chapters = (car-safe (cdr caption))
@@ -832,6 +846,7 @@ This does the following:
       (when (and elfeed-tube-captions-sblock-p sblock)
         (setq parsed-caps (elfeed-tube--sblock-captions sblock parsed-caps)))
       (when (and elfeed-tube-captions-puntcuate-p
+                 language
                  (string-match-p "auto-generated" language))
         (elfeed-tube--npreprocess-captions parsed-caps))
       parsed-caps)))

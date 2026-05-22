@@ -64,8 +64,8 @@
 
 (defsubst elfeed-tube--youtube-p (entry)
   "Check if ENTRY is a Youtube video entry."
-  (string-match-p elfeed-tube-youtube-regexp
-                  (elfeed-entry-link entry)))
+  (and-let* ((link (elfeed-entry-link entry)))
+    (string-match-p elfeed-tube-youtube-regexp link)))
 
 (defsubst elfeed-tube--url-video-id (url)
   "Get YouTube video URL's video-id."
@@ -117,13 +117,12 @@
 
 (defsubst elfeed-tube--match-captions-langs (lang el)
   "Find caption track matching LANG in plist EL."
-  (and (or (string-match-p
-            lang
-            (plist-get el :languageCode))
-           (string-match-p
-            lang
-            (thread-first (plist-get el :name)
-                          (plist-get :simpleText))))
+  (and (or (and-let* ((code (plist-get el :languageCode)))
+             (string-match-p lang code))
+           (and-let* ((name (or (map-nested-elt el '(:name :runs 0 :text))
+                                (thread-first (plist-get el :name)
+                                              (plist-get :simpleText)))))
+             (string-match-p lang name)))
        el))
 
 (defsubst elfeed-tube--truncate (str)
